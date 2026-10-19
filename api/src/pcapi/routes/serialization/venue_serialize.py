@@ -8,6 +8,7 @@ from pydantic import RootModel
 from pydantic_core import PydanticCustomError
 
 from pcapi.connectors.serialization import acceslibre_serializers
+from pcapi.core.criteria import constants as criteria_constants
 from pcapi.core.educational import models as educational_models
 from pcapi.core.offerers import models as offerers_models
 from pcapi.core.offerers import schemas as offerers_schemas
@@ -25,6 +26,11 @@ from pcapi.serialization.exceptions import PydanticError
 from pcapi.serialization.utils import HttpUrlStr
 from pcapi.utils import date as date_utils
 from pcapi.utils.siren import SIRET_LENGTH
+
+
+CRITERIA_MAPPINGS = {
+    criteria_constants.CLOSURE_DETECTED_LABEL: "CLOSURE_DETECTED",
+}
 
 
 class PostVenueBodyModel(HttpBodyModel):
@@ -96,6 +102,7 @@ class GetVenueResponseModel(HttpBodyModel):
     bannerMeta: venue_banners_serialize.BannerMetaModel | None
     bookingEmail: str | None
     comment: str | None
+    criteria: list[str]
     managingOfferer: GetVenueManagingOffererResponseModel
     pricingPoint: venue_finance_serialize.GetVenuePricingPointResponseModel | None
     isPricingPoint: bool
@@ -168,12 +175,17 @@ class GetVenueResponseModel(HttpBodyModel):
             else:
                 banner_meta = venue_banners_serialize.BannerMetaModel(image_credit=None, original_image_url=None)
 
+        filtered_criteria = [
+            CRITERIA_MAPPINGS[criterion.name] for criterion in venue.criteria if criterion.name in CRITERIA_MAPPINGS
+        ]
+
         dms_application = venue.last_collective_dms_application
         return cls(
             activity=offerers_models.DisplayableActivity[venue.activity.name],
             bannerUrl=venue.bannerUrl,
             name=venue.name,
             contact=venue.contact,  # type: ignore [arg-type]
+            criteria=filtered_criteria,
             description=venue.description,
             externalAccessibilityData=external_accessibility_data,
             externalAccessibilityId=external_accessibility_id,
